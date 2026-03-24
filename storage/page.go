@@ -113,6 +113,8 @@ func (bn *btreeNode) cellKey(offset uint16) uint32 {
 	return bn.internalCells[offset].key
 }
 
+// appendLeafCell appends into the slot count the logical index of the cell being
+// inserted, and append a pointer to a new leafCell into the node's leafCells.
 func (bn *btreeNode) appendLeafCell(key uint32, value []byte) {
 	bn.slots = append(bn.slots, uint16(len(bn.slots)))
 	bn.leafCells = append(bn.leafCells, &leafCell{
@@ -121,9 +123,40 @@ func (bn *btreeNode) appendLeafCell(key uint32, value []byte) {
 	})
 }
 
+// appendInternalCell appends into the slot count the logical index of the cell being
+// inserted, and append a pointer to a new internalCell into the node's internalCells.
 func (bn *btreeNode) appendInternalCell(key uint32, offset uint64) {
 	bn.slots = append(bn.slots, uint16(len(bn.slots)))
 	bn.internalCells = append(bn.internalCells, &internalCell{
 		key: key, offset: offset,
 	})
+}
+
+// insertInternalNode inserts into the internal node cells a new entry.
+// E.g.: offset = 1, key = 15, position = pageD
+// internalCells = [pageA: 10, pageB: 20, *pageC], len = 2 (cause the last pointer isn't an entry)
+// bn.slots = [0, 1] => [0, 1, 1]. #line1
+// bn.slots[1] = 2 => [0, 2, 1]. #line2
+// internalCells => [pageA: 10, pageB: 20, pageD: 15, *pageC].
+// But this internalNode structure is wrong, cause pageD should be left child of 20
+// because of B+Tree's internal node properties and pageB should be left child of 15.
+// So, we'll swap the page offsets.
+func (bn *btreeNode) insertInternalNode(offset uint32, key uint32, position uint64) {
+	bn.slots = append(bn.slots[:offset+1], bn.slots[:offset]...)
+	bn.slots[offset] = uint16(len(bn.internalCells))
+	bn.internalCells = append(bn.internalCells, &internalCell{
+		key:    key,
+		offset: position,
+	})
+	// internalCells = [pageA: 10, pageB: 20, pageD: 15, *pageC]
+	// offset of the 1st index in slot [0, 2, 1] => 2 index in internalCells => pageD:15
+	// rightOffset = pageD
+	rightOffset := bn.internalCells[bn.slots[offset]].offset
+	// offset of the 2nd index in slot [0, 2, 1] => 1 index in internalCells => pageB:20
+	// leftOffset = pageB
+	leftOffset := bn.internalCells[bn.slots[offset+1]].offset
+	// becomes => pageB:15
+	bn.internalCells[bn.slots[offset]].offset = leftOffset
+	// becomes => pageD:20
+	bn.internalCells[bn.slots[offset+1]].offset = rightOffset
 }
