@@ -210,3 +210,43 @@ func (bn *btreeNode) cellOffsetByKey(key uint32) (offset int, ok bool) {
 	}
 	return low, false
 }
+
+// isFull returns if the current node has reached its capacity depending on which
+// type of page it is.
+func (bn *btreeNode) isFull() bool {
+	if bn.isLeaf {
+		return len(bn.slots) >= maxLeafNodeElems
+	}
+	return len(bn.slots) >= maxInternalNodeElems
+}
+
+// split splits the current cell into two halves and appends the second half into
+// the provided newpg. If the current node is a leaf node, then the second half
+// will contain elements from the middle element of the previous cell; if it was
+// an internal cell, then the newpg contains elements from mid+1 and the middle key
+// is returned to be pushed to the parent.
+func (bn *btreeNode) split(newpg *btreeNode) (key uint32) {
+	if bn.isLeaf {
+		mid := len(bn.slots) / 2
+		for i := mid; i < len(bn.slots); i++ {
+			cell := bn.leafCells[bn.slots[i]]
+			newpg.appendLeafCell(cell.key, cell.value)
+		}
+		bn.slots = bn.slots[0:mid]
+		return newpg.leafCells[newpg.slots[0]].key
+	}
+	mid := len(bn.slots) / 2
+	for i := mid + 1; i < len(bn.slots); i++ {
+		cell := bn.internalCells[bn.slots[i]]
+		newpg.appendInternalCell(cell.key, cell.offset)
+	}
+	newpg.rightOffset = bn.rightOffset
+
+	// mid-key gets saved to be returned.
+	key = bn.internalCells[mid].key
+	// the middle key's offset now becomes the right offset.
+	bn.rightOffset = bn.internalCells[mid].offset
+	// mid-key removed from this cell's slots.
+	bn.slots = bn.slots[0:mid]
+	return
+}
