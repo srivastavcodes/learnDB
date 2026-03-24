@@ -132,7 +132,9 @@ func (bn *btreeNode) appendInternalCell(key uint32, offset uint64) {
 	})
 }
 
-// insertInternalNode inserts into the internal node cells a new entry.
+// insertInternalNode inserts into the internal node cells a new entry at the
+// provided index. It panics if the provided index is equal to the length of
+// the slots array - use appendInternalCell instead.
 // E.g.: offset = 1, key = 15, position = pageD
 // internalCells = [pageA: 10, pageB: 20, *pageC], len = 2 (cause the last pointer isn't an entry)
 // bn.slots = [0, 1] => [0, 1, 1]. #line1
@@ -141,22 +143,70 @@ func (bn *btreeNode) appendInternalCell(key uint32, offset uint64) {
 // But this internalNode structure is wrong, cause pageD should be left child of 20
 // because of B+Tree's internal node properties and pageB should be left child of 15.
 // So, we'll swap the page offsets.
-func (bn *btreeNode) insertInternalNode(offset uint32, key uint32, position uint64) {
-	bn.slots = append(bn.slots[:offset+1], bn.slots[:offset]...)
-	bn.slots[offset] = uint16(len(bn.internalCells))
+func (bn *btreeNode) insertInternalNode(index uint32, key uint32, offset uint64) {
+	bn.slots = append(bn.slots[:index+1], bn.slots[:index]...)
+	bn.slots[index] = uint16(len(bn.internalCells))
 	bn.internalCells = append(bn.internalCells, &internalCell{
-		key:    key,
-		offset: position,
+		key: key, offset: offset,
 	})
 	// internalCells = [pageA: 10, pageB: 20, pageD: 15, *pageC]
 	// offset of the 1st index in slot [0, 2, 1] => 2 index in internalCells => pageD:15
 	// rightOffset = pageD
-	rightOffset := bn.internalCells[bn.slots[offset]].offset
+	rightOffset := bn.internalCells[bn.slots[index]].offset
 	// offset of the 2nd index in slot [0, 2, 1] => 1 index in internalCells => pageB:20
 	// leftOffset = pageB
-	leftOffset := bn.internalCells[bn.slots[offset+1]].offset
+	leftOffset := bn.internalCells[bn.slots[index+1]].offset
 	// becomes => pageB:15
-	bn.internalCells[bn.slots[offset]].offset = leftOffset
+	bn.internalCells[bn.slots[index]].offset = leftOffset
 	// becomes => pageD:20
-	bn.internalCells[bn.slots[offset+1]].offset = rightOffset
+	bn.internalCells[bn.slots[index+1]].offset = rightOffset
+}
+
+// insertLeafCell inserts a new leaf cell with the provided key/val pair at the
+// given index. It panics if the provided index is equal to the length of the
+// slots array - use appendLeafCell instead.
+func (bn *btreeNode) insertLeafCell(index, key uint32, value []byte) error {
+	if len(value) > maxValueSize {
+		return ErrRowTooLarge
+	}
+	bn.slots = append(bn.slots[:index+1], bn.slots[index:]...)
+	bn.slots[index] = uint16(len(bn.slots))
+	bn.leafCells = append(bn.leafCells, &leafCell{
+		key: key, value: value,
+		valSize: uint32(len(value)),
+	})
+	return nil
+}
+
+func (bn *btreeNode) updateCell(key uint32, value []byte) error {
+	if len(value) > maxValueSize {
+		return ErrRowTooLarge
+	}
+	offset, ok := bn.cellOffsetByKey(key)
+	if !ok {
+		return fmt.Errorf("key record does not exist: %d", key)
+	}
+	bn.leafCells[bn.slots[offset]].value = value
+	bn.leafCells[bn.slots[offset]].valSize = uint32(len(value))
+	return nil
+}
+
+// cellOffsetByKey searches using b.s. for a cell by key. If ok is true, offset
+// is the index of key in the cell slice, if ok is false, offset is the key's
+// insertion point (index of the first element larger than the key).
+func (bn *btreeNode) cellOffsetByKey(key uint32) (offset int, ok bool) {
+	low, high := 0, len(bn.slots)-1
+	for low <= high {
+		mid := low + (high-low)/2
+		curr := bn.cellKey(bn.slots[mid])
+		switch {
+		case curr < key:
+			low = mid + 1
+		case curr > key:
+			high = mid - 1
+		default:
+			return mid, true
+		}
+	}
+	return low, false
 }
