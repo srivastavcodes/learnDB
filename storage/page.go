@@ -103,6 +103,12 @@ func (bn *btreeNode) markDirty(lsn uint64) {
 	bn.dirty = true
 }
 
+// returns the rightMostKey.
+func (bn *btreeNode) rightMostKey() uint32 {
+	lastIdx := bn.slots[len(bn.slots)-1]
+	return bn.internalCells[lastIdx].key
+}
+
 // cellKey indexes directly into the leafCells or internalCells. The provided index
 // must be an actual index and not a logical one.
 // E.g.: _ = cellKey[n.slots[i]); returns the key.

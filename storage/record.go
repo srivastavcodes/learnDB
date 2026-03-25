@@ -6,6 +6,20 @@ import (
 	"fmt"
 )
 
+func (bn *btreeNode) encode() (*bytes.Buffer, error) {
+	if bn.isLeaf {
+		return bn.encodeLeafCell()
+	}
+	return bn.encodeInternalCell()
+}
+
+func (bn *btreeNode) decode(buf *bytes.Buffer) error {
+	if bn.isLeaf {
+		return bn.decodeLeafCell(buf)
+	}
+	return bn.decodeInternalCell(buf)
+}
+
 func (bn *btreeNode) encodeInternalCell() (*bytes.Buffer, error) {
 	writeErr := func(err error) error {
 		return fmt.Errorf("binary write failed: %w", err)
