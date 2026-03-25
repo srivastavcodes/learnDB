@@ -77,7 +77,7 @@ func TestPage_LeafNodeSplit(t *testing.T) {
 		require.Equal(t, i, actual.key)
 		require.Equal(t,
 			uint32(len([]byte(fmt.Sprintf("Hello%d", i)))),
-			actual.valSize,
+			actual.valueSize,
 		)
 		require.Equal(t,
 			fmt.Appendf(make([]byte, 0), "Hello%d", i),
@@ -89,7 +89,7 @@ func TestPage_LeafNodeSplit(t *testing.T) {
 		require.Equal(t, i+2, actual.key)
 		require.Equal(t,
 			uint32(len([]byte(fmt.Sprintf("Hello%d", i+2)))),
-			actual.valSize,
+			actual.valueSize,
 		)
 		require.Equal(t,
 			fmt.Appendf(make([]byte, 0), "Hello%d", i+2),

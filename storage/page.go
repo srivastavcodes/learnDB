@@ -5,8 +5,8 @@ import (
 )
 
 const (
-	InternalNode = iota
-	LeafNode
+	InternalCell = iota
+	LeafCell
 )
 
 const (
@@ -39,7 +39,7 @@ const (
 	maxValueSize = 400
 
 	// size of leaf node key/val cell.
-	// key(4) + deleted(1) + valSize(4) + value(400)
+	// key(4) + deleted(1) + valueSize(4) + value(400)
 	leafNodeCellSize = 4 + 1 + 4 + maxValueSize
 )
 
@@ -68,10 +68,10 @@ type leafCell struct {
 	// parent is a back-pointer to the page that owns this cell, which is needed for
 	// update and delete operations that modify a cell after a scan returns it.
 	// This does not get serialized.
-	parent  *btreeNode
-	key     uint32
-	valSize uint32
-	value   []byte
+	parent    *btreeNode
+	key       uint32
+	valueSize uint32
+	value     []byte
 
 	// deleted is a tombstone marker for scans or point queries to make sure this
 	// cell is skipped. The space is reclaimed during compaction.
@@ -119,7 +119,7 @@ func (bn *btreeNode) appendLeafCell(key uint32, value []byte) {
 	bn.slots = append(bn.slots, uint16(len(bn.slots)))
 	bn.leafCells = append(bn.leafCells, &leafCell{
 		key: key, value: value,
-		valSize: uint32(len(value)),
+		valueSize: uint32(len(value)),
 	})
 }
 
@@ -173,7 +173,7 @@ func (bn *btreeNode) insertLeafCell(index, key uint32, value []byte) error {
 	bn.slots[index] = uint16(len(bn.slots))
 	bn.leafCells = append(bn.leafCells, &leafCell{
 		key: key, value: value,
-		valSize: uint32(len(value)),
+		valueSize: uint32(len(value)),
 	})
 	return nil
 }
@@ -187,7 +187,7 @@ func (bn *btreeNode) updateCell(key uint32, value []byte) error {
 		return fmt.Errorf("key record does not exist: %d", key)
 	}
 	bn.leafCells[bn.slots[offset]].value = value
-	bn.leafCells[bn.slots[offset]].valSize = uint32(len(value))
+	bn.leafCells[bn.slots[offset]].valueSize = uint32(len(value))
 	return nil
 }
 
