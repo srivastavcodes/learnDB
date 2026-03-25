@@ -89,7 +89,7 @@ func (bn *btreeNode) decodeInternalCell(buf *bytes.Buffer) error {
 			"invalid node type. want=%d. got=%d", InternalCell, cellType,
 		)
 	}
-	err = binary.Read(buf, binary.LittleEndian, bn.position)
+	err = binary.Read(buf, binary.LittleEndian, &bn.position)
 	if err != nil {
 		return readErr(err)
 	}
@@ -240,7 +240,7 @@ func (bn *btreeNode) decodeLeafCell(buf *bytes.Buffer) error {
 	if cellType != LeafCell {
 		return fmt.Errorf("invalid node type. want=%d. got=%d", LeafCell, cellType)
 	}
-	err = binary.Read(buf, binary.LittleEndian, bn.position)
+	err = binary.Read(buf, binary.LittleEndian, &bn.position)
 	if err != nil {
 		return readErr(err)
 	}

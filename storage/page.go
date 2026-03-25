@@ -5,7 +5,7 @@ import (
 )
 
 const (
-	InternalCell = iota
+	InternalCell byte = iota
 	LeafCell
 )
 
