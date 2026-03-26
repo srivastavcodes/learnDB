@@ -84,7 +84,7 @@ type btreeNode struct {
 	position uint64   // position of this node in the database file.
 	slots    []uint16 // slot array in sorted order.
 	freeSize uint16   // bytes of free space between header and cell data.
-	dirty    bool     // whether the page has been modified since last in memory.
+	isDirty  bool     // whether the page has been modified since last in memory.
 	lastLSN  uint64   // the last wal entry that modified this page.
 	isLeaf   bool     // is a leaf page or not?
 	// for internal node
@@ -100,7 +100,7 @@ type btreeNode struct {
 
 func (bn *btreeNode) markDirty(lsn uint64) {
 	bn.lastLSN = lsn
-	bn.dirty = true
+	bn.isDirty = true
 }
 
 // returns the rightMostKey.
