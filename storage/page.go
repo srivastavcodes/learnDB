@@ -184,6 +184,9 @@ func (bn *btreeNode) insertLeafCell(index, key uint32, value []byte) error {
 	return nil
 }
 
+// updateCell gets the cell using the provided key and updates the previous record
+// with the provided value. It errs if value > maxValueSize or if the key does not
+// exist within the node.
 func (bn *btreeNode) updateCell(key uint32, value []byte) error {
 	if len(value) > maxValueSize {
 		return ErrRowTooLarge
