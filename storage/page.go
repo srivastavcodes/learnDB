@@ -200,7 +200,7 @@ func (bn *btreeNode) updateCell(key uint32, value []byte) error {
 	return nil
 }
 
-// cellOffsetByKey searches using b.s. for a cell by key. If ok is true, offset
+// cellOffsetByKey searches using B.S. for a cell by key. If ok is true, offset
 // is the index of key in the cell slice, if ok is false, offset is the key's
 // insertion point (index of the first element larger than the key).
 func (bn *btreeNode) cellOffsetByKey(key uint32) (offset int, ok bool) {
