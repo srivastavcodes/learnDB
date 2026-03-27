@@ -138,18 +138,24 @@ func (bn *btreeNode) appendInternalCell(key uint32, offset uint64) {
 	})
 }
 
-// insertInternalNode inserts into the internal node cells a new entry at the
+// insertInternalCell inserts into the internal node cells a new entry at the
 // provided index. It panics if the provided index is equal to the length of
 // the slots array - use appendInternalCell instead.
-// E.g.: index = 1, key = 15, offset = pageD
+//
+// E.g. operation: index = 1, key = 15, offset = pageD
+//
 // internalCells = [pageA: 10, pageB: 20, *pageC], len = 2 (cause the last pointer isn't an entry)
+//
 // bn.slots = [0, 1] => [0, 1, 1]. #line1
+//
 // bn.slots[1] = 2 => [0, 2, 1]. #line2
+//
 // internalCells => [pageA: 10, pageB: 20, pageD: 15, *pageC].
+//
 // But this internalNode structure is wrong, cause pageD should be left child of 20
-// because of B+Tree's internal node properties and pageB should be left child of 15.
+// because of BpTree's internal-node properties, and pageB should be left child of 15.
 // So, we'll swap the page offsets.
-func (bn *btreeNode) insertInternalNode(index uint32, key uint32, offset uint64) {
+func (bn *btreeNode) insertInternalCell(index uint32, key uint32, offset uint64) {
 	bn.slots = append(bn.slots[:index+1], bn.slots[:index]...)
 	bn.slots[index] = uint16(len(bn.internalCells))
 	bn.internalCells = append(bn.internalCells, &internalCell{
