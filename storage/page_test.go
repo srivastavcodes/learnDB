@@ -67,7 +67,7 @@ func TestPage_LeafNodeSplit(t *testing.T) {
 		bn.appendLeafCell(i, []byte(fmt.Sprintf("Hello%d", i)))
 	}
 	newpg := &btreeNode{isLeaf: true}
-	key := bn.split(newpg)
+	key := bn.splitAppendTo(newpg)
 	require.Equal(t, uint32(2), key)
 	require.Equal(t, 3, len(newpg.slots))
 	require.Equal(t, 3, len(newpg.leafCells))
@@ -104,7 +104,7 @@ func TestPage_InternalNodeSplit(t *testing.T) {
 		bn.appendInternalCell(i, uint64(uint32(100)+i))
 	}
 	newpg := &btreeNode{isLeaf: false}
-	key := bn.split(newpg)
+	key := bn.splitAppendTo(newpg)
 	require.Equal(t, uint32(2), key)
 	require.Equal(t, 2, len(newpg.slots))
 	require.Equal(t, 2, len(newpg.internalCells))

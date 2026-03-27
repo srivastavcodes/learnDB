@@ -235,12 +235,12 @@ func (bn *btreeNode) isFull() bool {
 	return len(bn.slots) >= maxInternalNodeElems
 }
 
-// split splits the current cell into two halves and appends the second half into
+// splitAppendTo splits the current cell into two halves and appends the second half into
 // the provided newpg. If the current node is a leaf node, then the second half
 // will contain elements from the middle element of the previous cell; if it was
 // an internal cell, then the newpg contains elements from mid+1 and the middle key
 // is returned to be pushed to the parent.
-func (bn *btreeNode) split(newpg *btreeNode) (key uint32) {
+func (bn *btreeNode) splitAppendTo(newpg *btreeNode) (key uint32) {
 	if bn.isLeaf {
 		mid := len(bn.slots) / 2
 		for i := mid; i < len(bn.slots); i++ {
