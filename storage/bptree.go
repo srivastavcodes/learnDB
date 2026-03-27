@@ -115,11 +115,12 @@ func (bp *BpTree) insertLeaf(parent, curr *btreeNode, key uint32, lsn uint64, va
 			return fmt.Errorf("%w for key=%d", ErrKeyAlreadyExists, key)
 		}
 		parent.insertInternalCell(uint32(index), newKey, newpg.offset)
+
 		// update previous right sibling's left pointer
 		rightSib, err := bp.store.fetch(oldRSibOffset)
 		if err != nil {
-			return fmt.Errorf("couldn't fetch right sibling %d: %w",
-				oldRSibOffset, err,
+			return fmt.Errorf(
+				"couldn't fetch right sibling %d: %w", oldRSibOffset, err,
 			)
 		}
 		rightSib.lSibOffset = newpg.offset
