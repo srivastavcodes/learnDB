@@ -70,23 +70,23 @@ func (bp *BpTree) insertLeaf(parent, curr *btreeNode, key uint32, lsn uint64, va
 	if !curr.isFull() {
 		return nil
 	}
-	newpg := btreeNode{isLeaf: true}
+	newPage := btreeNode{isLeaf: true}
 
-	err := bp.store.append(&newpg)
+	err := bp.store.append(&newPage)
 	if err != nil {
 		return fmt.Errorf("append new page failed: %w", err)
 	}
-	// first key of the newpg
-	newKey := curr.split(&newpg)
+	// first key of the newPage
+	newKey := curr.splitAppendTo(&newPage)
 
 	// pointer re-shuffling to mark sibling nodes
 	oldRSibOffset := curr.rSibOffset
 
 	curr.hasRSib = true
-	curr.rSibOffset = newpg.offset
+	curr.rSibOffset = newPage.offset
 
-	newpg.hasLSib = true
-	newpg.lSibOffset = curr.offset
+	newPage.hasLSib = true
+	newPage.lSibOffset = curr.offset
 
 	if parent == nil {
 		var parentNode btreeNode
@@ -97,16 +97,16 @@ func (bp *BpTree) insertLeaf(parent, curr *btreeNode, key uint32, lsn uint64, va
 		}
 		bp.setRoot(&parentNode)
 
-		parentNode.rightOffset = newpg.offset
+		parentNode.rightOffset = newPage.offset
 		parentNode.appendInternalCell(newKey, curr.offset)
 
 		parent = &parentNode
 	} else if newKey > parent.rightMostKey() {
 		parent.appendInternalCell(newKey, parent.rightOffset)
-		parent.rightOffset = newpg.offset
+		parent.rightOffset = newPage.offset
 	} else {
-		newpg.rSibOffset = oldRSibOffset
-		newpg.hasRSib = true
+		newPage.rSibOffset = oldRSibOffset
+		newPage.hasRSib = true
 
 		// we are going to insert a new internal node, so it shouldn't be
 		// present on the parent node already.
@@ -114,7 +114,7 @@ func (bp *BpTree) insertLeaf(parent, curr *btreeNode, key uint32, lsn uint64, va
 		if present {
 			return fmt.Errorf("%w for key=%d", ErrKeyAlreadyExists, key)
 		}
-		parent.insertInternalCell(uint32(index), newKey, newpg.offset)
+		parent.insertInternalCell(uint32(index), newKey, newPage.offset)
 
 		// update previous right sibling's left pointer
 		rightSib, err := bp.store.fetch(oldRSibOffset)
@@ -123,17 +123,86 @@ func (bp *BpTree) insertLeaf(parent, curr *btreeNode, key uint32, lsn uint64, va
 				"couldn't fetch right sibling %d: %w", oldRSibOffset, err,
 			)
 		}
-		rightSib.lSibOffset = newpg.offset
+		rightSib.lSibOffset = newPage.offset
 		rightSib.markDirty(lsn)
 	}
 	// mark the pages dirty for the given log sequence number to denote part
 	// of the same transaction.
-	newpg.markDirty(lsn)
+	newPage.markDirty(lsn)
 	curr.markDirty(lsn)
 	parent.markDirty(lsn)
 	return nil
 }
 
 func (bp *BpTree) insertInternal(parent, curr *btreeNode, key uint32, lsn uint64, val []byte) error {
+	index, present := curr.cellOffsetByKey(key)
+	if present {
+		return fmt.Errorf("%w for key=%d", ErrKeyAlreadyExists, key)
+	}
+	offset := uint64(0)
+	// assigning the child node's offset depending on where the key will be inserted.
+	if index == len(curr.slots) {
+		offset = curr.rightOffset
+	} else {
+		offset = curr.internalCells[curr.slots[index]].offset
+	}
+	childPage, err := bp.store.fetch(offset)
+	if err != nil {
+		return fmt.Errorf("couldn't fetch node at offset %d: %w", offset, err)
+	}
+	if childPage.isLeaf {
+		if err = bp.insertLeaf(curr, childPage, key, lsn, val); err != nil {
+			return err
+		}
+	} else {
+		if err = bp.insertInternal(curr, childPage, key, lsn, val); err != nil {
+			return err
+		}
+	}
+	if !curr.isFull() {
+		return nil
+	}
+	var newPage btreeNode
+
+	err = bp.store.append(&newPage)
+	if err != nil {
+		return fmt.Errorf("appending new page failed: %w", err)
+	}
+	// newKey is the middle key of the curr node before splitting; now that it has been
+	// split, there are two cells before and after the mid-key.
+	// the mid-key will be appended to the parent, and it will store the previously right
+	// most offset of the parent.
+	// and now the parent will store the newPage's offset as the right-most offset since
+	// a new page has been added.
+	// following the order in which the recursion is happening, if you follow through
+	// after the new key has been added to the parent, there are two cases, node full or
+	// not full.
+	// if full, then, after this stack returns, the now-parent node will be checked if it
+	// is full or not, if it is the same thing happens again until some space it found or
+	// eventually a new root is created.
+
+	// todo: drawing it out might help.
+	newKey := curr.splitAppendTo(&newPage)
+
+	if parent == nil {
+		var parentNode btreeNode
+
+		err = bp.store.append(&parentNode)
+		if err != nil {
+			return fmt.Errorf("appending parent page failed: %w", err)
+		}
+		bp.setRoot(&parentNode)
+
+		parentNode.rightOffset = newPage.offset
+		parentNode.appendInternalCell(newKey, curr.offset)
+
+		parent = &parentNode
+	} else {
+		parent.appendInternalCell(newKey, parent.rightOffset)
+		parent.rightOffset = newPage.offset
+	}
+	newPage.markDirty(lsn)
+	curr.markDirty(lsn)
+	parent.markDirty(lsn)
 	return nil
 }
