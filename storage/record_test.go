@@ -10,7 +10,7 @@ import (
 
 func TestRecord_EncodeDecodeInternalCell(t *testing.T) {
 	want := btreeNode{
-		position: 10,
+		offset:   10,
 		slots:    []uint16{2, 1, 0, 3},
 		freeSize: 4009,
 		lastLSN:  1234,
@@ -36,7 +36,7 @@ func TestRecord_EncodeDecodeInternalCell(t *testing.T) {
 func TestRecord_EncodeDecodeLeafCell(t *testing.T) {
 	want := btreeNode{
 		isLeaf:   true,
-		position: 10,
+		offset:   10,
 		freeSize: 3926,
 		slots:    []uint16{0, 1, 2, 3},
 		lastLSN:  1234,

@@ -9,24 +9,24 @@ import (
 func TestLRUGet_Found(t *testing.T) {
 	lru := NewLru(3)
 
-	lru.setEntry("A", &btreeNode{isLeaf: true, position: 1})
-	lru.setEntry("B", &btreeNode{isLeaf: true, position: 2})
-	lru.setEntry("C", &btreeNode{isLeaf: true, position: 3})
+	lru.setEntry("A", &btreeNode{isLeaf: true, offset: 1})
+	lru.setEntry("B", &btreeNode{isLeaf: true, offset: 2})
+	lru.setEntry("C", &btreeNode{isLeaf: true, offset: 3})
 
 	key := "A"
-	expect := &btreeNode{isLeaf: true, position: 1}
+	expect := &btreeNode{isLeaf: true, offset: 1}
 
 	val := lru.entry(key)
 	require.NotNil(t, val)
-	require.Equal(t, expect.position, val.position)
+	require.Equal(t, expect.offset, val.offset)
 }
 
 func TestLRUGet_NotFound(t *testing.T) {
 	lru := NewLru(3)
 
-	lru.setEntry("A", &btreeNode{isLeaf: true, position: 1})
-	lru.setEntry("B", &btreeNode{isLeaf: true, position: 2})
-	lru.setEntry("C", &btreeNode{isLeaf: true, position: 3})
+	lru.setEntry("A", &btreeNode{isLeaf: true, offset: 1})
+	lru.setEntry("B", &btreeNode{isLeaf: true, offset: 2})
+	lru.setEntry("C", &btreeNode{isLeaf: true, offset: 3})
 
 	key := "D"
 	val := lru.entry(key)
@@ -47,13 +47,13 @@ func TestLRUState(t *testing.T) {
 			maxEntries:  5,
 			expectCount: 5,
 			setState: func(lru *LruCache) {
-				lru.setEntry("A", &btreeNode{isLeaf: true, position: 1})
-				lru.setEntry("B", &btreeNode{isLeaf: true, position: 2})
-				lru.setEntry("C", &btreeNode{isLeaf: true, position: 3})
-				lru.setEntry("D", &btreeNode{isLeaf: true, position: 4})
-				lru.setEntry("E", &btreeNode{isLeaf: true, position: 5})
+				lru.setEntry("A", &btreeNode{isLeaf: true, offset: 1})
+				lru.setEntry("B", &btreeNode{isLeaf: true, offset: 2})
+				lru.setEntry("C", &btreeNode{isLeaf: true, offset: 3})
+				lru.setEntry("D", &btreeNode{isLeaf: true, offset: 4})
+				lru.setEntry("E", &btreeNode{isLeaf: true, offset: 5})
 				// this should evict element A
-				lru.setEntry("F", &btreeNode{isLeaf: true, position: 6})
+				lru.setEntry("F", &btreeNode{isLeaf: true, offset: 6})
 			},
 			expectFront: "F",
 			expectBack:  "B",
@@ -63,11 +63,11 @@ func TestLRUState(t *testing.T) {
 			expectCount: 3,
 			maxEntries:  5,
 			setState: func(lru *LruCache) {
-				lru.setEntry("A", &btreeNode{isLeaf: true, position: 1})
-				lru.setEntry("B", &btreeNode{isLeaf: true, position: 2})
-				lru.setEntry("C", &btreeNode{isLeaf: true, position: 3})
+				lru.setEntry("A", &btreeNode{isLeaf: true, offset: 1})
+				lru.setEntry("B", &btreeNode{isLeaf: true, offset: 2})
+				lru.setEntry("C", &btreeNode{isLeaf: true, offset: 3})
 				// moved to beginning of list
-				lru.setEntry("A", &btreeNode{isLeaf: true, position: 1})
+				lru.setEntry("A", &btreeNode{isLeaf: true, offset: 1})
 			},
 			expectFront: "A",
 			expectBack:  "B",
@@ -77,9 +77,9 @@ func TestLRUState(t *testing.T) {
 			expectCount: 3,
 			maxEntries:  5,
 			setState: func(lru *LruCache) {
-				lru.setEntry("A", &btreeNode{isLeaf: true, position: 1})
-				lru.setEntry("B", &btreeNode{isLeaf: true, position: 2})
-				lru.setEntry("C", &btreeNode{isLeaf: true, position: 3})
+				lru.setEntry("A", &btreeNode{isLeaf: true, offset: 1})
+				lru.setEntry("B", &btreeNode{isLeaf: true, offset: 2})
+				lru.setEntry("C", &btreeNode{isLeaf: true, offset: 3})
 				lru.entry("A") // moved to beginning of list
 			},
 			expectFront: "A",
@@ -90,9 +90,9 @@ func TestLRUState(t *testing.T) {
 			expectCount: 3,
 			maxEntries:  5,
 			setState: func(lru *LruCache) {
-				lru.setEntry("A", &btreeNode{isLeaf: true, position: 1})
-				lru.setEntry("B", &btreeNode{isLeaf: true, position: 2})
-				lru.setEntry("C", &btreeNode{isLeaf: true, position: 3})
+				lru.setEntry("A", &btreeNode{isLeaf: true, offset: 1})
+				lru.setEntry("B", &btreeNode{isLeaf: true, offset: 2})
+				lru.setEntry("C", &btreeNode{isLeaf: true, offset: 3})
 				lru.entry("X") // this element should not exist
 			},
 			expectFront: "C",
@@ -123,11 +123,11 @@ func TestLRUEviction(t *testing.T) {
 			maxEntries:  3,
 			expectCount: 3,
 			setState: func(lru *LruCache) {
-				lru.setEntry("A", &btreeNode{isLeaf: true, position: 1})
-				lru.setEntry("B", &btreeNode{isLeaf: true, position: 2})
-				lru.setEntry("C", &btreeNode{isLeaf: true, position: 3})
+				lru.setEntry("A", &btreeNode{isLeaf: true, offset: 1})
+				lru.setEntry("B", &btreeNode{isLeaf: true, offset: 2})
+				lru.setEntry("C", &btreeNode{isLeaf: true, offset: 3})
 				// this should evict element A
-				lru.setEntry("D", &btreeNode{isLeaf: true, position: 4})
+				lru.setEntry("D", &btreeNode{isLeaf: true, offset: 4})
 			},
 			expectKeys: []string{"D", "C", "B"},
 		},
@@ -136,11 +136,11 @@ func TestLRUEviction(t *testing.T) {
 			maxEntries:  3,
 			expectCount: 3,
 			setState: func(lru *LruCache) {
-				lru.setEntry("A", &btreeNode{isLeaf: true, position: 1, isDirty: true})
-				lru.setEntry("B", &btreeNode{isLeaf: true, position: 2})
-				lru.setEntry("C", &btreeNode{isLeaf: true, position: 3})
+				lru.setEntry("A", &btreeNode{isLeaf: true, offset: 1, isDirty: true})
+				lru.setEntry("B", &btreeNode{isLeaf: true, offset: 2})
+				lru.setEntry("C", &btreeNode{isLeaf: true, offset: 3})
 				// this should evict element B
-				lru.setEntry("D", &btreeNode{isLeaf: true, position: 4})
+				lru.setEntry("D", &btreeNode{isLeaf: true, offset: 4})
 			},
 			expectKeys: []string{"D", "C", "A"},
 		},
@@ -149,11 +149,11 @@ func TestLRUEviction(t *testing.T) {
 			maxEntries:  3,
 			expectCount: 3,
 			setState: func(lru *LruCache) {
-				lru.setEntry("A", &btreeNode{isLeaf: true, position: 1, isDirty: true})
-				lru.setEntry("B", &btreeNode{isLeaf: true, position: 2, isDirty: true})
-				lru.setEntry("C", &btreeNode{isLeaf: true, position: 3})
+				lru.setEntry("A", &btreeNode{isLeaf: true, offset: 1, isDirty: true})
+				lru.setEntry("B", &btreeNode{isLeaf: true, offset: 2, isDirty: true})
+				lru.setEntry("C", &btreeNode{isLeaf: true, offset: 3})
 				// this should evict element C
-				lru.setEntry("D", &btreeNode{isLeaf: true, position: 4})
+				lru.setEntry("D", &btreeNode{isLeaf: true, offset: 4})
 			},
 			expectKeys: []string{"D", "B", "A"},
 		},
@@ -162,10 +162,10 @@ func TestLRUEviction(t *testing.T) {
 			maxEntries:  3,
 			expectCount: 3,
 			setState: func(lru *LruCache) {
-				lru.setEntry("A", &btreeNode{isLeaf: true, position: 1, isDirty: true})
-				lru.setEntry("B", &btreeNode{isLeaf: true, position: 2, isDirty: true})
-				lru.setEntry("C", &btreeNode{isLeaf: true, position: 3, isDirty: true})
-				res := lru.setEntry("D", &btreeNode{isLeaf: true, position: 4})
+				lru.setEntry("A", &btreeNode{isLeaf: true, offset: 1, isDirty: true})
+				lru.setEntry("B", &btreeNode{isLeaf: true, offset: 2, isDirty: true})
+				lru.setEntry("C", &btreeNode{isLeaf: true, offset: 3, isDirty: true})
+				res := lru.setEntry("D", &btreeNode{isLeaf: true, offset: 4})
 				require.False(t, res,
 					"expected setEntry to fail because of cache full, but it succeeded",
 				)

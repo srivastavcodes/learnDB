@@ -81,7 +81,7 @@ type leafCell struct {
 // btreeNode represents one page of the B+Tree. A single page is of 4096 bytes.
 // A single btreeNode can be either an internal node or a leaf node.
 type btreeNode struct {
-	position uint64   // position of this node in the database file.
+	offset   uint64   // offset of this node in the database file.
 	slots    []uint16 // slot array in sorted order.
 	freeSize uint16   // bytes of free space between header and cell data.
 	isDirty  bool     // whether the page has been modified since last in memory.
@@ -141,7 +141,7 @@ func (bn *btreeNode) appendInternalCell(key uint32, offset uint64) {
 // insertInternalNode inserts into the internal node cells a new entry at the
 // provided index. It panics if the provided index is equal to the length of
 // the slots array - use appendInternalCell instead.
-// E.g.: offset = 1, key = 15, position = pageD
+// E.g.: index = 1, key = 15, offset = pageD
 // internalCells = [pageA: 10, pageB: 20, *pageC], len = 2 (cause the last pointer isn't an entry)
 // bn.slots = [0, 1] => [0, 1, 1]. #line1
 // bn.slots[1] = 2 => [0, 2, 1]. #line2

@@ -13,11 +13,19 @@ type store interface {
 	incrLSN()
 	// fsync persists the data in stable storage (on disk).
 	fsync() error
+	// incrLastKey is a thin wrapper around the lastKey field in the store.
+	incrLastKey()
+	// getLastKey returns the lastKey fields value from the store.
+	getLastKey() uint32
 }
 
 type memoryStore struct {
 	pages   []*btreeNode
 	lastKey uint32
+}
+
+func (ms *memoryStore) getLastKey() uint32 {
+	return ms.lastKey
 }
 
 func (ms *memoryStore) nextLSN() uint64 {
@@ -28,18 +36,22 @@ func (ms *memoryStore) incrLSN() {
 	return
 }
 
+func (ms *memoryStore) incrLastKey() {
+	ms.lastKey++
+}
+
 func (ms *memoryStore) fsync() error {
 	return nil
 }
 
 func (ms *memoryStore) append(node *btreeNode) error {
-	node.position = uint64(len(ms.pages))
+	node.offset = uint64(len(ms.pages))
 	ms.pages = append(ms.pages, node)
 	return nil
 }
 
 func (ms *memoryStore) update(node *btreeNode) error {
-	index := node.position
+	index := node.offset
 	ms.pages[index] = node
 	return nil
 }
