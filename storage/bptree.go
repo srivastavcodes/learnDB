@@ -16,6 +16,8 @@ var (
 	CantScan = ScanAction(false)
 )
 
+// BpTree is a B+ tree implementation that stores nodes in a backing store
+// and maintains a reference to the root node's offset.
 type BpTree struct {
 	store      store
 	rootOffset uint64
@@ -31,6 +33,8 @@ func (bp *BpTree) setRoot(node *btreeNode) {
 	bp.rootOffset = node.offset
 }
 
+// insert adds a new record with the given value to the B+ tree, automatically assigning
+// the next available key and LSN, returning the assigned key, LSN, and any error.
 func (bp *BpTree) insert(value []byte) (uint32, uint64, error) {
 	nextKey := bp.store.getLastKey() + 1
 	nextLsn := bp.store.nextLSN()
@@ -42,6 +46,8 @@ func (bp *BpTree) insert(value []byte) (uint32, uint64, error) {
 	return nextKey, nextLsn, err
 }
 
+// insertKey inserts a key-value pair with the given LSN into the B+ tree, traversing
+// from the root and delegating to leaf or internal node insertion based on node-type.
 func (bp *BpTree) insertKey(key uint32, lsn uint64, value []byte) error {
 	root, err := bp.root()
 	if err != nil {
@@ -53,6 +59,12 @@ func (bp *BpTree) insertKey(key uint32, lsn uint64, value []byte) error {
 	return bp.insertInternal(nil, root, key, lsn, value)
 }
 
+// insertLeaf inserts a key-value pair into a leaf node of the B+ tree or returns
+// an error if the key already exists.
+// When the leaf node becomes full after insertion, it splits the node and creates
+// a new sibling, propagating the split key upward by updating or creating a parent
+// node. All modified nodes are marked dirty with the provided LSN to track the
+// transaction.
 func (bp *BpTree) insertLeaf(parent, curr *btreeNode, key uint32, lsn uint64, val []byte) error {
 	index, present := curr.cellOffsetByKey(key)
 	if present { // not an update operation so return error.
@@ -134,6 +146,11 @@ func (bp *BpTree) insertLeaf(parent, curr *btreeNode, key uint32, lsn uint64, va
 	return nil
 }
 
+// insertInternal recursively inserts a key-value pair into an internal node of the B+ tree,
+// traversing down to the appropriate child node based on the key's position.
+// When the internal node becomes full after insertion, it splits the node, promotes the
+// middle key to the parent, and creates a new sibling node to balance the tree.
+// All modified nodes are marked dirty with the provided LSN to track the transaction.
 func (bp *BpTree) insertInternal(parent, curr *btreeNode, key uint32, lsn uint64, val []byte) error {
 	index, present := curr.cellOffsetByKey(key)
 	if present {
@@ -178,7 +195,7 @@ func (bp *BpTree) insertInternal(parent, curr *btreeNode, key uint32, lsn uint64
 	// after the new key has been added to the parent, there are two cases, node full or
 	// not full.
 	// if full, then, after this stack returns, the now-parent node will be checked if it
-	// is full or not, if it is the same thing happens again until some space it found or
+	// is full or not, if it is, the same thing happens again until some space is found or
 	// eventually a new root is created.
 
 	// todo: drawing it out might help.
