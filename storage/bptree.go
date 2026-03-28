@@ -12,8 +12,8 @@ var ErrKeyAlreadyExists = errors.New("record already exists")
 type ScanAction bool
 
 var (
-	CanScan  = ScanAction(true)
-	CantScan = ScanAction(false)
+	ContinueScan = ScanAction(true)
+	StopScan     = ScanAction(false)
 )
 
 // BpTree is a B+ tree implementation that stores nodes in a backing store
@@ -221,5 +221,148 @@ func (bp *BpTree) insertInternal(parent, curr *btreeNode, key uint32, lsn uint64
 	newPage.markDirty(lsn)
 	curr.markDirty(lsn)
 	parent.markDirty(lsn)
+	return nil
+}
+
+// findCell traverses the BpTree using binary search, starting from the root node
+// down to the leaf node and returns the cell for the provided key and sets the
+// parent pointer for the leaf cell.
+// Returns an error if "key not found".
+func (bp *BpTree) findCell(key uint32) (*leafCell, error) {
+	root, err := bp.root()
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch root node: %w", err)
+	}
+	/*	for !root.isLeaf {
+			for i := 0; i <= len(root.slots); i++ {
+				if i == len(root.slots) || key < root.cellKey(root.slots[i]) {
+					var offset uint64
+					if i == len(root.slots) {
+						offset = root.rightOffset
+					} else {
+						offset = root.internalCells[root.slots[i]].offset
+					}
+					root, err = bp.store.fetch(offset)
+					if err != nil {
+						return nil, fmt.Errorf("fetch failed: %w", err)
+					}
+					break
+				}
+			}
+		}
+	*/
+	for !root.isLeaf {
+		// index is either a match or the insertion point of the key.
+		// [1,2,4]; key=3, so the index would be 2 because the key's
+		// cell will be found in the node 4 is pointing to.
+		index, _ := root.cellOffsetByKey(key)
+		var offset uint64
+
+		if index == len(root.slots) {
+			offset = root.rightOffset
+		} else {
+			offset = root.internalCells[root.slots[index]].offset
+		}
+		root, err = bp.store.fetch(offset)
+		if err != nil {
+			return nil, fmt.Errorf("fetch failed: %w", err)
+		}
+	}
+	index, present := root.cellOffsetByKey(key)
+	if !present {
+		return nil, errors.New("key not found")
+	}
+	cell := root.leafCells[root.slots[index]]
+	if cell.deleted {
+		return nil, errors.New("key not found")
+	}
+	cell.parent = root
+	return cell, nil
+}
+
+// scanRight traverses the BpTree from the leftmost leaf node to the rightmost,
+// visiting each non-deleted cell in ascending key order and invoking the callback
+// function for each cell. The traversal stops early if the callback returns StopScan
+// or an error occurs.
+func (bp *BpTree) scanRight(fn func(cell *leafCell) (ScanAction, error)) error {
+	root, err := bp.root()
+	if err != nil {
+		return fmt.Errorf("failed to fetch root node: %w", err)
+	}
+	// get the left-most leaf node
+	for !root.isLeaf {
+		offset := root.internalCells[root.slots[0]].offset
+		root, err = bp.store.fetch(offset)
+		if err != nil {
+			return fmt.Errorf("table scan error: %w", err)
+		}
+	}
+outer:
+	for {
+		for _, slot := range root.slots {
+			cell := root.leafCells[slot]
+			if cell.deleted {
+				continue
+			}
+			cell.parent = root
+
+			if action, err := fn(cell); err != nil {
+				return err
+			} else if action == StopScan {
+				return nil
+			}
+		}
+		if root.hasRSib {
+			root, err = bp.store.fetch(root.rSibOffset)
+			if err != nil {
+				return fmt.Errorf("table scan error: %w", err)
+			}
+		} else {
+			break outer
+		}
+	}
+	return nil
+}
+
+// scanLeft traverses the BpTree from the rightmost leaf node to the leftmost,
+// visiting each non-deleted cell in descending key order and invoking the callback
+// function for each cell. The traversal stops early if the callback returns StopScan
+// or an error occurs.
+func (bp *BpTree) scanLeft(fn func(cell *leafCell) (ScanAction, error)) error {
+	root, err := bp.root()
+	if err != nil {
+		return fmt.Errorf("failed to fetch root node: %w", err)
+	}
+	// get the right-most leaf node
+	for !root.isLeaf {
+		root, err = bp.store.fetch(root.rightOffset)
+		if err != nil {
+			return fmt.Errorf("table scan error: %w", err)
+		}
+	}
+outer:
+	for {
+		for index := len(root.slots) - 1; index >= 0; index-- {
+			cell := root.leafCells[root.slots[index]]
+			if cell.deleted {
+				continue
+			}
+			cell.parent = root
+
+			if action, err := fn(cell); err != nil {
+				return err
+			} else if action == StopScan {
+				return nil
+			}
+		}
+		if root.hasLSib {
+			root, err = bp.store.fetch(root.lSibOffset)
+			if err != nil {
+				return fmt.Errorf("table scan error: %w", err)
+			}
+		} else {
+			break outer
+		}
+	}
 	return nil
 }
